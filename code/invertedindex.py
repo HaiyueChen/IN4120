@@ -86,8 +86,28 @@ class InMemoryInvertedIndex(InvertedIndex):
         identifiers in the range {0, ..., N - 1}.
         """
 
+        for document in self._corpus:
+            for field_name in fields:
+                document_id = document.get_document_id()
+                raw_field = document.get_field(field_name, None)
+                if not raw_field:
+                    continue
+                else:
+                    token_strings = self._tokenizer.strings(raw_field)
+                    for token_string in token_strings:
+                        
+                        posting_list_index = self._dictionary.add_if_absent(token_string)
+
+                        if posting_list_index == len(self._posting_lists):
+                            posting = Posting(document_id, 1)
+                            new_posting_list = [posting]
+                            self._posting_lists.append(new_posting_list)
+                        else:
+                            self._posting_lists[posting_list_index].append(document_id)
+        
+
         # Replace this with your own implementation.
-        raise NotImplementedError
+        raise Exception
 
     def get_terms(self, buffer: str) -> Iterator[str]:
         return (self._normalizer.normalize(t) for t in self._tokenizer.strings(self._normalizer.canonicalize(buffer)))
