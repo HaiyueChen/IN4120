@@ -93,21 +93,31 @@ class InMemoryInvertedIndex(InvertedIndex):
                 if not raw_field:
                     continue
                 else:
+
                     token_strings = self._tokenizer.strings(raw_field)
                     for token_string in token_strings:
-                        
-                        posting_list_index = self._dictionary.add_if_absent(token_string)
+                        normailized = self._normalizer.normalize(token_string)
+                        posting_list_index = self._dictionary.add_if_absent(normailized)
 
                         if posting_list_index == len(self._posting_lists):
                             posting = Posting(document_id, 1)
                             new_posting_list = [posting]
                             self._posting_lists.append(new_posting_list)
                         else:
-                            self._posting_lists[posting_list_index].append(document_id)
-        
+                            posting_list = self._posting_lists[posting_list_index]
+                            found = False
+                            for posting in posting_list:
+                                if posting.document_id == document_id:
+                                    posting.term_frequency += 1
+                                    found = True
+                                    break
+                            if not found:
+                                posting = Posting(document_id, 1)
+                                posting_list.append(posting)
 
-        # Replace this with your own implementation.
-        raise Exception
+        for posting_list in self._posting_lists:
+            posting_list.sort(key=lambda x: x.document_id)
+
 
     def get_terms(self, buffer: str) -> Iterator[str]:
         return (self._normalizer.normalize(t) for t in self._tokenizer.strings(self._normalizer.canonicalize(buffer)))
