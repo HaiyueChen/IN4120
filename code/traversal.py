@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from typing import Iterator
+from typing import List
 from invertedindex import Posting
 import copy
 
@@ -53,5 +54,34 @@ class PostingsMerger:
         The posting lists are assumed sorted in increasing order according
         to the document identifiers.
         """         
+        # I could just use the python sort(), which uses timsort and would probably perform better
+        # than my implementation of merge sort, but what ever :D
+        # return iter(sorted(list(p1) + list(p2), key=lambda x: x.document_id))
+        
+        sorted_postings = PostingsMerger._merge_sort(list(p1), list(p2))
+        return iter(sorted_postings)
 
-        return iter(sorted(list(p1) + list(p2), key=lambda x: x.document_id))
+    @staticmethod
+    def _merge_sort(posting_list1: List[Posting], posting_list2: List[Posting]) -> List[Posting]:
+        sorted_postings = [None] * (len(posting_list1) + len(posting_list2))
+        index_sorted = index_p1 = index_p2 = 0
+        while index_p1 < len(posting_list1) and index_p2 < len(posting_list2):
+            if posting_list1[index_p1].document_id < posting_list2[index_p2].document_id:
+                sorted_postings[index_sorted] = posting_list1[index_p1]
+                index_p1 += 1
+            else:
+                sorted_postings[index_sorted] = posting_list2[index_p2]
+                index_p2 += 1
+            index_sorted += 1
+
+        while index_p1 < len(posting_list1):
+            sorted_postings[index_sorted] = posting_list1[index_p1]
+            index_p1 += 1
+            index_sorted += 1
+
+        while index_p2 < len(posting_list2):
+            sorted_postings[index_sorted] = posting_list2[index_p2]
+            index_p2 += 1
+            index_sorted += 1
+        
+        return sorted_postings
