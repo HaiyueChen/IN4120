@@ -56,10 +56,13 @@ class PostingsMerger:
         The posting lists are assumed sorted in increasing order according
         to the document identifiers.
         """
-
+        #I could implement another iterator very similar to the one above,
+        #but I found a built in lib that does what is needed
+        # https://docs.python.org/3/library/heapq.html#heapq.merge
         return merge(p1, p2, key=lambda x: x.document_id)
 
 
+    #This method is useless
     @staticmethod
     def _merge_sort(posting_list1: List[Posting], posting_list2: List[Posting]) -> List[Posting]:
         sorted_postings = [None] * (len(posting_list1) + len(posting_list2))
