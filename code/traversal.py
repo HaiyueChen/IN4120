@@ -4,6 +4,7 @@
 from typing import Iterator
 from typing import List
 from invertedindex import Posting
+from heapq import merge
 import copy
 
 class PostingsMerger:
@@ -20,29 +21,30 @@ class PostingsMerger:
         The posting lists are assumed sorted in increasing order according
         to the document identifiers.
         """
-        intersect = []
-        p1_list = [*p1]
-        p2_list = [*p2]
         
-        if not p1_list or not p2_list:
-            return iter(intersect)
+        p1_element = next(p1, None)
+        p2_element = next(p2, None)
 
-        p1_index = 0
-        p2_index =0
-        while p1_index < len(p1_list) and p2_index < len(p2_list):
-            p1_item = p1_list[p1_index]
-            p2_item = p2_list[p2_index]
-            if p1_item.document_id == p2_item.document_id:
-                intersect.append(copy.deepcopy(p1_item))
-                p1_index += 1
-                p2_index += 1
+        if not p1_element or not p2_element:
+            return 
+        
+        if p1_element.document_id == p2_element.document_id:
+            yield p1_element
+            p1_element = next(p1, None)
+            p2_element = next(p2, None)
+        
+
+        while p1_element and p2_element:
+            if p1_element.document_id == p2_element.document_id:
+                yield p1_element
+                p1_element = next(p1, None)
+                p2_element = next(p2, None)
             else:
-                if p1_item.document_id < p2_item.document_id:
-                    p1_index += 1
+                if p1_element.document_id < p2_element.document_id:
+                    p1_element = next(p1, None)
                 else:
-                    p2_index += 1
-
-        return iter(intersect)
+                    p2_element = next(p2, None)
+        return
         
 
     @staticmethod
@@ -53,13 +55,10 @@ class PostingsMerger:
 
         The posting lists are assumed sorted in increasing order according
         to the document identifiers.
-        """         
-        # I could just use the python sort(), which uses timsort and would probably perform better
-        # than my implementation of merge sort, but what ever :D
-        # return iter(sorted(list(p1) + list(p2), key=lambda x: x.document_id))
-        
-        sorted_postings = PostingsMerger._merge_sort(list(p1), list(p2))
-        return iter(sorted_postings)
+        """
+
+        return merge(p1, p2, key=lambda x: x.document_id)
+
 
     @staticmethod
     def _merge_sort(posting_list1: List[Posting], posting_list2: List[Posting]) -> List[Posting]:
