@@ -7,7 +7,8 @@
 from corpus import Corpus
 from normalization import Normalizer
 from tokenization import Tokenizer
-from typing import Callable, Any, Iterable
+from typing import Callable, Any, Iterable, List
+import functools
 
 
 class SuffixArray:
@@ -23,6 +24,7 @@ class SuffixArray:
         self._corpus = corpus
         self._normalizer = normalizer
         self._tokenizer = tokenizer
+        self._normalized_document_contents = {}
         self._document_suffixes = {}
         self._build_suffix_array(fields)
 
@@ -32,20 +34,38 @@ class SuffixArray:
         The suffix array allows us to search across all named fields in one go.
         """
         for document in self._corpus:
+            document_id = document.get_document_id()
             contents = ""
             for field in fields:
                 field_content = document.get_field(field, None)
                 if field_content:
                     contents += f" {field_content}"
-            normalized = self._normalize(contents)
-            suffixes = []
-            for i in range(len(contents)):
-                suffixes.append((contents[i:], i))
-            suffixes.sort(key=lambda x: x[0])
-            print(suffixes)
+            normalized_content = self._normalize(contents)
+            self._normalized_document_contents[document.get_document_id()] = normalized_content
+            suffix_indices = []
+            for i in range(1, len(normalized_content)):
+                suffix_indices.append(i)
+
+            suffix_indices.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes(x, y, normalized_content)))
+            self._document_suffixes[document_id] = suffix_indices
 
 
+    def _compare_suffixes(self, index_1: int, index_2: int, content: str):
+        content_length = len(content)
+        if index_1 == index_2:
+            return 0
 
+        while index_1 < content_length and index_2 < content_length:
+            if content[index_1] < content[index_2]:
+                return -1
+            if content[index_1] > content[index_2]:
+                return 1
+            index_1 += 1
+            index_2 += 1
+        if index_1 == content_length and index_2 < content_length:
+            return -1
+        else:
+            return 1
 
     def _normalize(self, buffer: str) -> str:
         """
@@ -73,5 +93,24 @@ class SuffixArray:
         The callback function supplied by the client will receive a dictionary having the keys "score" (int) and
         "document" (Document).
         """
+        normalized_prefix = self._normalize(query)
+
+        for document_id in self._normalized_document_contents:
+            normalized_contents = self._normalized_document_contents[document_id]
+            suffix_array = self._document_suffixes[document_id]
+            for suffix_index in suffix_array:
+                
 
         raise NotImplementedError()
+
+
+    def _prefix_match(self, normalized_prefix, suffix_index, document_id):
+        normalized_content = self._normalized_document_contents[document_id]
+        match = False
+        if suffix_index + len(normalized_prefix) > len(normalized_content):
+            return False
+
+        for i in range(len(normalized_prefix)):
+            if normalized_prefix[i] != normalized_content[suffix_index + i]:
+                return False
+        return True
