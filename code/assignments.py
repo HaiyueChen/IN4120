@@ -301,8 +301,8 @@ def assignment_b_stringfinder():
 
 def assignment_b():
     assignment_b_suffixarray_1()
-    assignment_b_suffixarray_2()
-    assignment_b_stringfinder()
+    # assignment_b_suffixarray_2()
+    # assignment_b_stringfinder()
 
 
 def assignment_c():

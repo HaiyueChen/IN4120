@@ -31,11 +31,21 @@ class SuffixArray:
         Builds a simple suffix array from the set of named fields in the document collection.
         The suffix array allows us to search across all named fields in one go.
         """
-        for docuent in self._corpus:
-            
+        for document in self._corpus:
+            contents = ""
+            for field in fields:
+                field_content = document.get_field(field, None)
+                if field_content:
+                    contents += f" {field_content}"
+            normalized = self._normalize(contents)
+            suffixes = []
+            for i in range(len(contents)):
+                suffixes.append((contents[i:], i))
+            suffixes.sort(key=lambda x: x[0])
+            print(suffixes)
 
 
-        raise NotImplementedError()
+
 
     def _normalize(self, buffer: str) -> str:
         """
