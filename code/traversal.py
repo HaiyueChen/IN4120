@@ -44,6 +44,8 @@ class PostingsMerger:
                     p1_element = next(p1, None)
                 else:
                     p2_element = next(p2, None)
+
+                    
         return
         
 

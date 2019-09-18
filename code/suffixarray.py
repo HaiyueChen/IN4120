@@ -7,7 +7,7 @@
 from corpus import Corpus
 from normalization import Normalizer
 from tokenization import Tokenizer
-from typing import Callable, Any, Iterable, List
+from typing import Callable, Any, Iterable, List, Tuple
 import functools
 
 
@@ -39,33 +39,37 @@ class SuffixArray:
             for field in fields:
                 field_content = document.get_field(field, None)
                 if field_content:
-                    contents += f" {field_content}"
+                    contents += f"\0{field_content}"
             normalized_content = self._normalize(contents)
             self._normalized_document_contents[document.get_document_id()] = normalized_content
-            suffix_indices = []
-            for i in range(1, len(normalized_content)):
-                suffix_indices.append(i)
 
-            suffix_indices.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes(x, y, normalized_content)))
-            self._document_suffixes[document_id] = suffix_indices
+            suffix_id_tuple = {}
+            suffix_id_string = {}
+            tokens = self._tokenizer.ranges(normalized_content)
+            for i in range(1, len(tokens)):
+                suffix = tokens[i:len(tokens)]
+                suffix_id_tuple[i] = suffix
+                suffix_id_string[i] = "".join([normalized_content[token_tuple[0]:token_tuple[1]] for token_tuple in suffix])
+
+            suffix_ids = list(suffix_id_tuple.keys())
+            suffix_ids.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes(x, y, suffix_id_string)))
+            
+            sorted_document_suffix = []
+            for suffix_id in suffix_ids:
+                sorted_document_suffix.append(suffix_id_tuple[suffix_id])
+
+            self._document_suffixes[document_id] = sorted_document_suffix
+
+    def _compare_suffixes(self, suffix_id_1: int, suffix_id_2: int, suffix_dict: dict):
+        if suffix_id_2 == suffix_id_2:
+            return 0        
+        return 1 if suffix_dict[suffix_id_1] > suffix_dict[suffix_id_2] else -1
 
 
-    def _compare_suffixes(self, index_1: int, index_2: int, content: str):
-        content_length = len(content)
-        if index_1 == index_2:
-            return 0
+    def print_suffix(self, suffix_tuples, content):
+        token_string = " ".join([content[token_tuple[0]:token_tuple[1]] for token_tuple in suffix_tuples])
+        print(token_string)
 
-        while index_1 < content_length and index_2 < content_length:
-            if content[index_1] < content[index_2]:
-                return -1
-            if content[index_1] > content[index_2]:
-                return 1
-            index_1 += 1
-            index_2 += 1
-        if index_1 == content_length and index_2 < content_length:
-            return -1
-        else:
-            return 1
 
     def _normalize(self, buffer: str) -> str:
         """
@@ -93,24 +97,37 @@ class SuffixArray:
         The callback function supplied by the client will receive a dictionary having the keys "score" (int) and
         "document" (Document).
         """
-        normalized_prefix = self._normalize(query)
-
-        for document_id in self._normalized_document_contents:
-            normalized_contents = self._normalized_document_contents[document_id]
-            suffix_array = self._document_suffixes[document_id]
-            for suffix_index in suffix_array:
-                
-
-        raise NotImplementedError()
+        normalized_query = self._normalize(query)
+        matched_docs_and_score = {}
+        for doc_id in self._document_suffixes:
+            doc_suffixes = self._document_suffixes[doc_id]
+            normalized_doc_content = self._normalized_document_contents[doc_id]
 
 
-    def _prefix_match(self, normalized_prefix, suffix_index, document_id):
-        normalized_content = self._normalized_document_contents[document_id]
-        match = False
-        if suffix_index + len(normalized_prefix) > len(normalized_content):
-            return False
+    def _prefix_match(self, prefix: str, suffix: List[Tuple[int]], content: str):
+        pass 
 
-        for i in range(len(normalized_prefix)):
-            if normalized_prefix[i] != normalized_content[suffix_index + i]:
-                return False
-        return True
+
+    def _suffix_binary_search(self, query: str, suffix_array: List[List[Tuple[int]]], content: str) -> Tuple[int]:
+        lower = 0
+        upper = len(suffix_array)
+        found = False
+        match_index = -1
+        while lower < upper:
+            index = lower + (upper - lower) // 2
+            suffix = suffix_array[index]
+            match_result = self._prefix_match(query, suffix, content)
+            if match_result == 0:
+                found = True
+                match_index = index
+                break
+            elif match_result == -1:
+                upper = index
+            else:
+                if lower == index:
+                    break
+                lower = index
+        
+        if not found:
+            return (-1, -1)
+        
