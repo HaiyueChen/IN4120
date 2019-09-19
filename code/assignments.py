@@ -140,7 +140,8 @@ def assignment_b_suffixarray_1():
     engine = SuffixArray(corpus, ["body"], normalizer, tokenizer)
     results = []
     hit_count = 5
-
+    print("done indexing")
+    input()
     # Callback for receiving matches.
     def match_collector(match):
         results.append(match)
@@ -227,11 +228,12 @@ def assignment_b_suffixarray_2():
         engine = SuffixArray(TestCorpus(), fields, TestNormalizer(), BrainDeadTokenizer())
         snapshot2 = tracemalloc.take_snapshot()
         for statistic in snapshot2.compare_to(snapshot1, "filename"):
+            print(statistic.size_diff)
             if statistic.traceback[0].filename == inspect.getfile(SuffixArray):
                 assert statistic.size_diff < 2000000, f"Memory usage is {statistic.size_diff}"
         tracemalloc.stop()
         results = []
-
+        input()
         def process(m):
             results.append((m['document'].document_id, m['score']))
 
@@ -300,8 +302,8 @@ def assignment_b_stringfinder():
 
 
 def assignment_b():
-    assignment_b_suffixarray_1()
-    # assignment_b_suffixarray_2()
+    # assignment_b_suffixarray_1()
+    assignment_b_suffixarray_2()
     # assignment_b_stringfinder()
 
 

@@ -9,6 +9,7 @@ from normalization import Normalizer
 from tokenization import Tokenizer
 from typing import Callable, Any, Iterable, List, Tuple
 import functools
+import gc
 
 
 class SuffixArray:
@@ -25,7 +26,9 @@ class SuffixArray:
         self._normalizer = normalizer
         self._tokenizer = tokenizer
         self._normalized_document_contents = {}
-        self._document_suffixes = {}
+        self._document_tokens = {}
+        self._document_suffix_ids = {}
+        self._fields = fields
         self._build_suffix_array(fields)
 
     def _build_suffix_array(self, fields: Iterable[str]) -> None:
@@ -35,41 +38,84 @@ class SuffixArray:
         """
         for document in self._corpus:
             document_id = document.get_document_id()
-            contents = ""
-            for field in fields:
-                field_content = document.get_field(field, None)
-                if field_content:
-                    contents += f"\0{field_content}"
-            normalized_content = self._normalize(contents)
+            # contents = ""
+            # for field in fields:
+            #     field_content = document.get_field(field, None)
+            #     if field_content:
+            #         contents += f"\0{field_content}"
+            print(document_id, len(self._corpus))
+            normalized_content = self._build_normailized_document_content(document_id)
             self._normalized_document_contents[document.get_document_id()] = normalized_content
-
-            suffix_id_tuple = {}
-            suffix_id_string = {}
+            print("normalized document")
+            print(f"doc length: {len(normalized_content)}")
+        #     suffix_id_tuple = {}
+        #     suffix_id_string = {}
             tokens = self._tokenizer.ranges(normalized_content)
-            for i in range(1, len(tokens)):
-                suffix = tokens[i:len(tokens)]
-                suffix_id_tuple[i] = suffix
-                suffix_id_string[i] = " ".join([normalized_content[token_tuple[0]:token_tuple[1]] for token_tuple in suffix])
+            self._document_tokens[document_id] = tokens
+            print("tokenized document")
+            print(f"tokens: {len(tokens)}")
+        #     for i in range(1, len(tokens)):
+        #         suffix = tokens[i:len(tokens)]
+        #         suffix_id_tuple[i] = suffix
+        #         suffix_id_string[i] = "\0".join([normalized_content[token_tuple[0]:token_tuple[1]] for token_tuple in suffix])
 
-            suffix_ids = list(suffix_id_tuple.keys())
-            suffix_ids.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes(x, y, suffix_id_string)))
+        #     suffix_ids = list(suffix_id_tuple.keys())
+        #     suffix_ids.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes(x, y, suffix_id_string)))
             
-            sorted_document_suffix = []
-            for suffix_id in suffix_ids:
-                sorted_document_suffix.append(suffix_id_tuple[suffix_id])
+        #     sorted_document_suffix = []
+        #     for suffix_id in suffix_ids:
+        #         sorted_document_suffix.append(suffix_id_tuple[suffix_id])
 
-            self._document_suffixes[document_id] = sorted_document_suffix
+        #     self._document_suffixes[document_id] = sorted_document_suffix
+            suffix_ids = []
+            for i in range(1, len(tokens)):
+                suffix_ids.append(i)
+            print("generated suffix ids")
+            print("sorting")
+            suffix_ids.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes_using_token_indices(x, y, document_id)))
+            print("Done sorting")
+            self._document_suffix_ids = suffix_ids
+        # gc.collect()
 
-    def _compare_suffixes(self, suffix_id_1: int, suffix_id_2: int, suffix_dict: dict):
-        if suffix_id_2 == suffix_id_2:
-            return 0        
-        return 1 if suffix_dict[suffix_id_1] > suffix_dict[suffix_id_2] else -1
+
+    def _build_normailized_document_content(self, document_id: int) -> str:
+        document = self._corpus.get_document(document_id)
+        contents = [document.get_field(field, "") for field in self._fields]
+        normalized_content = self._normalize("\0".join(contents))
+        return normalized_content
 
 
-    def print_suffix(self, suffix_tuples, content):
-        token_string = " ".join([content[token_tuple[0]:token_tuple[1]] for token_tuple in suffix_tuples])
-        print(token_string)
+    # def _compare_suffixes(self, suffix_id_1: int, suffix_id_2: int, suffix_dict: dict):
+    #     if suffix_id_2 == suffix_id_2:
+    #         return 0        
+    #     return 1 if suffix_dict[suffix_id_1] > suffix_dict[suffix_id_2] else -1
 
+    def _compare_suffixes_using_token_indices(self, token_id_1, token_id_2, document_id):
+        print(f"sorting {token_id_1} {token_id_2}")
+        if token_id_1 == token_id_2:
+            return 0
+
+        token_list = self._document_tokens[document_id]
+        normalized_document_content = self._normalized_document_contents[document_id]
+
+
+
+        suffix_1_tokens = iter(token_list[token_id_1:len(token_list)])
+        suffix_2_tokens = iter(token_list[token_id_2:len(token_list)])
+        
+        suffix_1_token_tuple = next(suffix_1_tokens, None)
+        suffix_2_token_tuple = next(suffix_2_tokens, None)
+        
+        suffix_1_token_range = range(suffix_1_token_tuple[0], suffix_1_token_tuple[1])
+        suffix_2_token_range = range(suffix_2_token_tuple[0], suffix_2_token_tuple[1])
+        
+        while True:
+            suffix_1_index = next    
+
+
+        suffix_1 = "\0".join(suffix_1_strings)
+        suffix_2 = "\0".join(suffix_2_strings)
+        return 1 if suffix_1 > suffix_2 else -1
 
     def _normalize(self, buffer: str) -> str:
         """
@@ -78,7 +124,7 @@ class SuffixArray:
         """
 
         # Tokenize and join to be robust to nuances in whitespace and punctuation.
-        return self._normalizer.normalize(" ".join(self._tokenizer.strings(self._normalizer.canonicalize(buffer))))
+        return self._normalizer.normalize("\0".join(self._tokenizer.strings(self._normalizer.canonicalize(buffer))))
 
     def evaluate(self, query: str, options: dict, callback: Callable[[dict], Any]) -> None:
         """
@@ -107,6 +153,7 @@ class SuffixArray:
             # print(f"Searching in doc: {doc_id}")
             doc_suffixes = self._document_suffixes[doc_id]
             normalized_doc_content = self._normalized_document_contents[doc_id]
+            # normalized_doc_content = self._normalize(self._corpus.get_document(doc_id))
             # match_range = self._suffix_binary_search(normalized_query, doc_suffixes, normalized_doc_content)
             # match_score = match_range[1] - match_range[0]
             match_score = self._suffix_linear_search(normalized_query, doc_suffixes, normalized_doc_content)
@@ -118,7 +165,6 @@ class SuffixArray:
             if match_score > 0:
                 new_match_dict = {"score": match_score, "document": self._corpus.get_document(doc_id)}
                 self._insert_into_temp_results(new_match_dict, temp_matches, hit_count)
-        
         # print("adding winners with callback")
         for match in temp_matches:
             callback(match)
@@ -161,7 +207,7 @@ class SuffixArray:
         for i in range(len(suffix_array)):
             suffix_tuples = suffix_array[i]
             suffix_tokens = [content[suffix_tuple[0]:suffix_tuple[1]] for suffix_tuple in suffix_tuples]
-            suffix_string = " ".join(suffix_tokens)
+            suffix_string = "\0".join(suffix_tokens)
             if len(suffix_string) < len(query):
                 continue
             else:
@@ -177,18 +223,17 @@ class SuffixArray:
         for i in range(lower + 1, len(suffix_array)):
             suffix_tuples = suffix_array[i]
             suffix_tokens = [content[suffix_tuple[0]:suffix_tuple[1]] for suffix_tuple in suffix_tuples]
-            suffix_string = " ".join(suffix_tokens)
+            suffix_string = "\0".join(suffix_tokens)
             if len(suffix_string) < len(query):
                 continue
             else:
                 suffix_prefix = suffix_string[0:len(query)]
                 if suffix_prefix == query:
                     num_matches += 1
-        
         return num_matches
                                 
 
-
+    """
     def _suffix_binary_search(self, query: str, suffix_array: List[List[Tuple[int]]], content: str) -> Tuple[int]:
         # print("Binary search")
         lower = 0
@@ -252,3 +297,4 @@ class SuffixArray:
                 if prefix[i] > suffix_as_string[i]:
                     return 1
             return 0
+    """
