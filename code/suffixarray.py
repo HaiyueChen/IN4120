@@ -38,41 +38,28 @@ class SuffixArray:
         """
         for document in self._corpus:
             document_id = document.get_document_id()
-            # contents = ""
-            # for field in fields:
-            #     field_content = document.get_field(field, None)
-            #     if field_content:
-            #         contents += f"\0{field_content}"
-            # print(document_id, len(self._corpus))
             normalized_content = self._build_normailized_document_content(document_id)
             self._normalized_document_contents[document.get_document_id()] = normalized_content
-            # print("normalized document")
-            # print(f"doc length: {len(normalized_content)}")
-        #     suffix_id_tuple = {}
-        #     suffix_id_string = {}
             tokens = self._tokenizer.ranges(normalized_content)
-            print(self._tokenizer.strings(normalized_content))
+            # print(self._tokenizer.strings(normalized_content))
             self._document_tokens[document_id] = tokens
+            # if document_id < 4:
+            #     print(normalized_content)
+            #     print(tokens)
 
             suffix_ids = []
-            for i in range(1, len(tokens)):
+            for i in range(len(tokens)):
                 suffix_ids.append(i)
-            # print("generated suffix ids")
-            # print("sorting")
-            # suffix_ids.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes_using_token_indices(x, y, document_id)))
             suffix_ids.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes(x, y, document_id)))
-            # print("Done sorting")
             self._document_suffix_ids[document_id] = suffix_ids
-            # print(self._document_suffix_ids[document_id])
-            # input()
-        # gc.collect()
 
 
     def _build_normailized_document_content(self, document_id: int) -> str:
         document = self._corpus.get_document(document_id)
         contents = [document.get_field(field, "") for field in self._fields]
-        normalized_content = self._normalize("\0".join(contents))
-        return normalized_content
+        normalized_contents = [self._normalize(content) for content in contents]
+        proccesed_content = "\0".join(normalized_contents)
+        return proccesed_content
 
 
 
@@ -86,8 +73,8 @@ class SuffixArray:
         suffix_1_tuples = token_list[token_id_1:len(token_list)]
         suffix_2_tuples = token_list[token_id_2:len(token_list)]
 
-        suffix_1_string = "\0".join([normalized_document_content[token[0]:token[1]] for token in suffix_1_tuples])
-        suffix_2_string = "\0".join([normalized_document_content[token[0]:token[1]] for token in suffix_2_tuples])
+        suffix_1_string = " ".join([normalized_document_content[token[0]:token[1]] for token in suffix_1_tuples])
+        suffix_2_string = " ".join([normalized_document_content[token[0]:token[1]] for token in suffix_2_tuples])
 
         if suffix_1_string > suffix_2_string:
             return 1
@@ -95,7 +82,6 @@ class SuffixArray:
             return -1
 
     def _compare_suffixes_using_token_indices(self, token_id_1, token_id_2, document_id):
-        # print(f"sorting {token_id_1} {token_id_2}")
         if token_id_1 == token_id_2:
             return 0
 
@@ -104,7 +90,7 @@ class SuffixArray:
 
         suffix_1_tokens = token_list[token_id_1:len(token_list)]
         suffix_2_tokens = token_list[token_id_2:len(token_list)]
-        
+
         suffix_1_index = 0
         suffix_2_index = 0
         suffix_1_token_string = self._get_token_string(suffix_1_index, suffix_1_tokens, normalized_document_content)
@@ -113,11 +99,7 @@ class SuffixArray:
         token_index_1 = 0
         token_index_2 = 0
         while suffix_1_token_string != None and suffix_2_token_string != None:
-            # print(f"suffix indices: {suffix_1_index} {suffix_2_index} token indecies: {token_index_1} {token_index_2}")
-            # print(f"tokens: {suffix_1_token_string} {suffix_2_token_string}")
-            # print(f"token length: {len(suffix_1_token_string)} {}")
             while token_index_1 < len(suffix_1_token_string) and token_index_2 < len(suffix_2_token_string):
-                # print(f"token indecies: {token_index_1} {token_index_2}")
                 if suffix_1_token_string[token_index_1] > suffix_2_token_string[token_index_2]:
                     return 1
                 if suffix_1_token_string[token_index_1] < suffix_2_token_string[token_index_2]:
@@ -152,7 +134,7 @@ class SuffixArray:
 
         if suffix_1_token_string == None:
             return -1
-        
+
         if suffix_2_token_string == None:
             return 1
 
@@ -172,7 +154,7 @@ class SuffixArray:
         """
 
         # Tokenize and join to be robust to nuances in whitespace and punctuation.
-        return self._normalizer.normalize("\0".join(self._tokenizer.strings(self._normalizer.canonicalize(buffer))))
+        return self._normalizer.normalize(" ".join(self._tokenizer.strings(self._normalizer.canonicalize(buffer))))
 
     def evaluate(self, query: str, options: dict, callback: Callable[[dict], Any]) -> None:
         """
@@ -197,23 +179,27 @@ class SuffixArray:
         hit_count = options["hit_count"]
         normalized_query = self._normalize(query)
         query_tokens = self._tokenizer.strings(normalized_query)
-        proccesed_query = "\0".join(query_tokens)
-        print(query, proccesed_query)
-        input()
+        proccesed_query = " ".join(query_tokens)
+        print(f"searching for: {query} normailized: {proccesed_query}")
+        # input()
         temp_matches = []
         for doc_id in self._document_suffix_ids:
-            # print(f"Searching in doc: {doc_id}")
             doc_tokens = self._document_tokens[doc_id]
             sorted_suffix_ids = self._document_suffix_ids[doc_id]
             # print(self._document_suffix_ids)
 
             normalized_doc_content = self._normalized_document_contents[doc_id]
-            # normalized_doc_content = self._normalize(self._corpus.get_document(doc_id))
+            null_char_present = '\0' in normalized_doc_content
+            print(f"doc: {doc_id} null char: {null_char_present}]")
+            # print(f"Searching in doc: {doc_id} content: {normalized_doc_content}")
             # match_range = self._suffix_binary_search(normalized_query, doc_suffixes, normalized_doc_content)
             # match_score = match_range[1] - match_range[0]
             match_score = self._suffix_linear_search(proccesed_query, sorted_suffix_ids, doc_tokens, normalized_doc_content)
             if len(sorted_suffix_ids) < 1:
-                match_score = 1 if proccesed_query in normalized_doc_content else 0
+
+                print(f"Doc: {doc_id} No suffixes: {normalized_doc_content} query: {proccesed_query}")
+                # print(match_score)
+                # match_score = 1 if proccesed_query in normalized_doc_content else 0
             # print("Found range")
             # if doc_id == 328:
             #     print(normalized_doc_content)
@@ -222,34 +208,15 @@ class SuffixArray:
             if match_score > 0:
                 new_match_dict = {"score": match_score, "document": self._corpus.get_document(doc_id)}
                 self._insert_into_temp_results(new_match_dict, temp_matches, hit_count)
+            print(f"Doc: {doc_id} match score: {match_score}")
         # print("adding winners with callback")
         for match in temp_matches:
             callback(match)
-        
+
         return
 
-            
+
     def _insert_into_temp_results(self, new_match: dict, temp_results: List[dict], hit_count: int) -> None:
-        # if len(temp_results) == hit_count:
-        #     insertion_index = hit_count - 1
-        #     if new_match["score"] <= temp_results[insertion_index]["score"]:
-        #         return
-
-        #     for i in reversed(range(hit_count)):
-        #         if new_match["score"] > temp_results[i]["score"]:
-        #             insertion_index = i + 1
-        #     temp_results.insert(insertion_index, new_match)
-        #     temp_results.pop(hit_count)
-            
-        # elif len(temp_results) < hit_count:
-        #     for i in range(len(temp_results)):
-        #         if temp_results[i]["score"] > new_match["score"]:
-        #             temp_results.insert(i, new_match)
-        #             return
-        #     temp_results.append(new_match)
-
-        # else:
-        #     raise ValueError
         temp_results.append(new_match)
         temp_results.sort(key=lambda x: x["score"], reverse=True)
         if len(temp_results) > hit_count:
@@ -282,125 +249,72 @@ class SuffixArray:
 
         return num_matches
 
-    def _prefix_match(self, prefix: str, suffix: List[Tuple[int]], content: str):
+    def _prefix_match(self, prefix: str, suffix_tuples: List[Tuple[int]], content: str):
         suffix_tokens = []
-        for token in suffix:
-            suffix_tokens.append(content[token[0]:token[1]])
-        suffix = "\0".join(suffix_tokens)
-        # print(suffix)
-        # print(prefix)
-        # input()
-        if len(suffix) < len(prefix):
-            for i in range(len(suffix)):
-                if prefix[i] < suffix[i]:
-                    return -1
-                if prefix[i] > suffix[i]:
-                    return 1
-        else:
-            for i in range(len(prefix)):
-                for i in range(len(prefix)):
-                    if prefix[i] < suffix[i]:
-                        return -1
-                    if prefix[i] > suffix[i]:
-                        return 1
-            return 0
-
-        # suffix_length = 0
-        # prefix_length = len(prefix)
-        # suffix_index = 0
-        # suffix_tokens = []
-        # while suffix_length < prefix_length and suffix_index < len(suffix):
-        #     token_tuple = suffix[suffix_index]
-        #     suffix_token = content[token_tuple[0]: token_tuple[1]]
-        #     suffix_tokens.append(suffix_token)
-        #     suffix_length += len(suffix_token)
-        #     suffix_index += 1
-
-        # suffix_string = "\0".join(suffix_tokens)
-        
-        # if suffix_length < prefix_length:
-        #     for i in range(suffix_length):
-        #         if prefix[i] > suffix_string[i]:
-        #             return 1
+        delim_index = -1
+        try:
+            delim_index = content.index("\0")
+        except Exception:
+            pass
+        # for token in suffix_tuples:
+        #     # suffix_tokens.append(content[token[0]:token[1]])
+        #     suffix_string = (content[token[0]:token[1]])
+        #     if token[1] == delim_index or token == delim_index + 1:
+        #         # print("null char added")
+        #         # suffix_tokens.append(content[token[0]:token[1]+1])
+        #         # print(content[token[0]:token[1]+1])
+        #         # suffix_string = (content[token[0]:token[1]]) + "\0"
+        #         suffix_string += "\0"
+        #         # suffix_string += "\0"
+        #         # suffix_tokens.append(suffix_string)
+        #     # else:
+        #     #     suffix_string += content[token[0]:token[1]]
+        #     #     suffix_string += " "
+        #     suffix_tokens.append(suffix_string)
+        # suffix_string = " ".join(suffix_tokens)
+        # null_char_found = '\0' in suffix_string
+        # # print(f"null char in suffix: {null_char_found}")
+        # if len(suffix_string) < len(prefix):
+        #     for i in range(len(suffix_string)):
         #         if prefix[i] < suffix_string[i]:
         #             return -1
-        #     return -1
+        #         if prefix[i] > suffix_string[i]:
+        #             return 1
         # else:
-        #     for i in range(prefix_length):
-        #         for i in range(prefix_length):
-        #             if prefix[i] > suffix_string[i]:
-        #                 return 1
-        #             if prefix[i] < suffix_string[i]:
-        #                 return -1
-        #         return 0
+        #     for i in range(len(prefix)):
+        #         if prefix[i] < suffix_string[i]:
+        #             return -1
+        #         if prefix[i] > suffix_string[i]:
+        #             return 1
+        #     return 0
 
+        suffix_length = 0
+        prefix_length = len(prefix)
+        suffix_index = 0
+        suffix_tokens = []
+        while suffix_length < prefix_length and suffix_index < len(suffix_tuples):
+            token_tuple = suffix_tuples[suffix_index]
+            suffix_token = content[token_tuple[0]: token_tuple[1]]
+            if token_tuple[1] < len(content) and token_tuple[1] == delim_index:
+                suffix_token += "\0"
+            suffix_tokens.append(suffix_token)
+            suffix_length += len(suffix_token)
+            suffix_index += 1
 
+        suffix_string = " ".join(suffix_tokens)
 
-
-
-
-    """
-    def _suffix_binary_search(self, query: str, suffix_array: List[List[Tuple[int]]], content: str) -> Tuple[int]:
-        # print("Binary search")
-        lower = 0
-        upper = len(suffix_array)
-        found = False
-        match_index = -1
-        while lower < upper:
-            index = lower + (upper - lower) // 2
-            suffix = suffix_array[index]
-            match_result = self._prefix_match(query, suffix, content)
-            if match_result == 0:
-                found = True
-                match_index = index
-                break
-            elif match_result == -1:
-                upper = index
-            else:
-                if lower == index:
-                    break
-                lower = index
-
-        if not found:
-            # print("Did not find a match")
-            return (-1, -1)
-        
-        # print("Found a match")
-
-        lower_bound = match_index
-        upper_bound = match_index
-        # print("Searching left")
-        while lower_bound - 1 > 0:
-            lower_bound_suffix = suffix_array[lower_bound]
-            if self._prefix_match(query, lower_bound_suffix, content) == 0:
-                lower_bound -= 1
-            else:
-                break
-        
-        # print("Searching right")
-        while upper_bound + 1 < len(suffix_array):
-            upper_bound_suffix = suffix_array[upper_bound]
-            if self._prefix_match(query, upper_bound_suffix, content) == 0:
-                upper_bound += 1
-            else:
-                break
-
-        return (lower_bound, upper_bound)
-
-    def _prefix_match(self, prefix: str, suffix: List[Tuple[int]], content: str):
-        suffix_as_string = " ".join([content[suffix_tuple[0]:suffix_tuple[1]] for suffix_tuple in suffix])
-        if len(prefix) > len(suffix_as_string):
-            for i in range(len(suffix_as_string)):
-                if prefix[i] > suffix_as_string[i]:
+        if len(suffix_string) < prefix_length:
+            for i in range(len(suffix_string)):
+                if prefix[i] > suffix_string[i]:
                     return 1
-                if prefix[i] < suffix_as_string[i]:
+                if prefix[i] < suffix_string[i]:
                     return -1
-            return 1
+            return -1
         else:
-            for i in range(len(prefix)):
-                if prefix[i] < suffix_as_string[i]:
-                    return -1
-                if prefix[i] > suffix_as_string[i]:
-                    return 1
-            return 0
-    """
+            for i in range(prefix_length):
+                for i in range(prefix_length):
+                    if prefix[i] > suffix_string[i]:
+                        return 1
+                    if prefix[i] < suffix_string[i]:
+                        return -1
+                return 0

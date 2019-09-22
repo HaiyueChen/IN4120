@@ -215,7 +215,7 @@ def assignment_b_suffixarray_2():
             return self._docs[document_id]
 
     # Run the tests!
-    for fields in [("b",), ("a", "b")]:
+    for fields in [("a", "b")]:
 
         # Create the suffix array over the given set of fields. Measure memory usage. If memory usage is
         # excessive, most likely the implementation is copying strings or doing other silly stuff instead
