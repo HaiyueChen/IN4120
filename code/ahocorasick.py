@@ -99,8 +99,59 @@ class StringFinder:
         support for leftmost-longest matching (instead of reporting all matches), and support for lemmatization
         or similar linguistic variations.
         """
+        # print(self._trie)
+        # input()
+        normalized = " ".join(self._tokenizer.strings(buffer))
+        exploring_queue = []
+        matches = []
+        is_token_start = False
+        is_token_end = False
+        for i in range(len(normalized)):
+            character = normalized[i]
+            if i > 0 and normalized[i - 1] == " ":
+                is_token_start = True
+            else:
+                is_token_start = False
+            
+            if i == len(normalized) - 1:
+                is_token_end = True
+            elif normalized[i+1] == " ":
+                is_token_end = True
+            else:
+                is_token_end = False
 
-        raise NotImplementedError()
+            # print(f"matching {character}")
+            # input()
+            new_queue = []
+            for node_dict in exploring_queue:
+                de_queued_string = normalized[node_dict['start']:node_dict['end']]
+                # print(f"dequeueing: {de_queued_string}")
+                de_queued = node_dict["node"]
+                next_node = de_queued.consume(character)
+                if next_node:
+                    if next_node.is_final() and len(next_node._children) > 1:
+                        if is_token_end:
+                            match_result = {"match": normalized[node_dict["start"]:node_dict["end"] + 1], "range": (node_dict["start"], node_dict["end"] + 1)}
+                            matches.append(match_result)
+                        new_queue.append({"node": next_node, "start": node_dict["start"], "end": node_dict["end"] + 1})
+                    elif next_node.is_final() and len(next_node._children) == 1 and is_token_end:
+                        match_result = {"match": normalized[node_dict["start"]:node_dict["end"] + 1], "range": (node_dict["start"], node_dict["end"] + 1)}
+                        matches.append(match_result)
+                    else:
+                        new_queue.append({"node": next_node, "start": node_dict["start"], "end": node_dict["end"] + 1})
+                        # print(f"Added back to exploration: {normalized[node_dict['start']:node_dict['end']]}")
+
+            exploring_queue = new_queue
+            if is_token_start:
+                new_node = self._trie.consume(character)
+                if new_node:
+                # print("appending to exploring queue")
+                    exploring_queue.append({"node": new_node, "start": i, "end": i + 1})
+        
+        for match in matches:
+            callback(match)
+            
+
 
 
 def main():

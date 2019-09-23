@@ -138,7 +138,10 @@ def assignment_b_suffixarray_1():
     print("LOADING...")
     corpus = InMemoryCorpus("../data/cran.xml")
     print("INDEXING...")
+    indexing_start = timeit.default_timer()
     engine = SuffixArray(corpus, ["body"], normalizer, tokenizer)
+    indexing_stop = timeit.default_timer()
+    print(f"Indexing time: {indexing_stop - indexing_start}")
     results = []
     hit_count = 5
     # Callback for receiving matches.
@@ -216,13 +219,13 @@ def assignment_b_suffixarray_2():
             return self._docs[document_id]
 
     # Run the tests!
-    for fields in [("a", "b")]:
+    for fields in [("b",), ("a", "b")]:
 
         # Create the suffix array over the given set of fields. Measure memory usage. If memory usage is
         # excessive, most likely the implementation is copying strings or doing other silly stuff instead
         # of working with buffer indices. The naive reference implementation is not in any way optimized,
         # and uses about 1.5 MB of memory on this corpus.
-        print("run")
+        print("Indexing...")
         # tracemalloc.start()
         # snapshot1 = tracemalloc.take_snapshot()
         start = timeit.default_timer()
@@ -260,10 +263,7 @@ def assignment_b_suffixarray_2():
         for query, expected in expected_results[fields]:
             results.clear()
             engine.evaluate(query, {'hit_count': 10}, process)
-            try:
-                assert results == expected
-            except AssertionError:
-                print(f"results: {results} expected: {expected}")
+            assert results == expected
 
 def assignment_b_stringfinder():
 
@@ -276,13 +276,16 @@ def assignment_b_stringfinder():
     for s in ["romerike", "apple computer", "norsk", "norsk ørret", "sverige", "ørret", "banan"]:
         trie.add(s, tokenizer)
     finder = StringFinder(trie, tokenizer)
-    buffer = "det var en gang en norsk  ørret fra romerike som likte abba fra sverige"
+    buffer = "det var en gang en norsk ørret fra romerike som likte abba fra sverige"
+    
+    # print(trie)
+    # input()
     print("SCANNING...")
     results.clear()
     finder.scan(buffer, lambda m: results.append(m))
     print("Buffer \"" + buffer + "\" contains", results)
     assert [m["match"] for m in results] == ["norsk", "norsk ørret", "ørret", "romerike", "sverige"]
-
+    input("Enter to continue")
     # Find all MeSH terms that occur verbatim in some selected Cranfield documents! Since MeSH
     # documents are medical terms and the Cranfield documents have technical content, the
     # overlap probably isn't that big.
@@ -308,8 +311,8 @@ def assignment_b_stringfinder():
 
 def assignment_b():
     # assignment_b_suffixarray_1()
-    assignment_b_suffixarray_2()
-    # assignment_b_stringfinder()
+    # assignment_b_suffixarray_2()
+    assignment_b_stringfinder()
 
 
 def assignment_c():

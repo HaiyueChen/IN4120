@@ -73,47 +73,6 @@ class SuffixArray:
 
         return proccesed_content
 
-    # def _check_suffixes_increasing_order(self, doc_id):
-    #     sorted_suffixes = self._document_suffix_ids[doc_id]
-    #     # doc_tokens = self._document_tokens[doc_id]
-    #     increasing = True
-    #     for i in range(0, len(sorted_suffixes) - 1):
-    #         if self._compare_suffixes_eager(sorted_suffixes[i], sorted_suffixes[i + 1], doc_id) > 0:
-    #             print(f"Doc: {doc_id} suffix not increasing!")
-    #             increasing = False
-    #             break
-    #     if not increasing:
-    #         self._print_suffixes(doc_id)
-    #         input()
-    #     else:
-    #         print(f"Doc: {doc_id} suffix increasing!")
-
-    # def _print_suffixes(self, doc_id):
-    #     delim_indices = self._document_field_delim_indices[doc_id]
-    #     contents = self._normalized_document_contents[doc_id]
-
-    #     suffix_ids = self._document_suffix_ids[doc_id]
-    #     doc_tokens = self._document_tokens[doc_id]
-    #     doc_content = self._normalized_document_contents[doc_id]
-    #     for suffix_id in suffix_ids:
-    #         token_tuples = doc_tokens[suffix_id:len(doc_tokens)]
-    #         token_strings = []
-    #         for token_tuple in token_tuples:
-    #             token_string = doc_content[token_tuple[0]:token_tuple[1]]
-    #             if token_tuple[1] in delim_indices or token_tuple[1] + 1 in delim_indices:
-    #                 token_string += "\0"
-    #             token_strings.append(token_string)
-    #         suffix_string = " ".join(token_strings)
-    #         # print(suffix_string)
-    #         for char in suffix_string:
-    #             if char == "\0":
-    #                 print("null", end="")
-    #             else:
-    #                 print(char, end="")
-    #         print()
-
-
-
 
     def _compare_suffixes_eager(self, token_id_1, token_id_2, document_id):
         if token_id_1 == token_id_2:
@@ -252,11 +211,11 @@ class SuffixArray:
         normalized_query = self._normalize(query)
         query_tokens = self._tokenizer.strings(normalized_query)
         proccesed_query = " ".join(query_tokens)
-        print(f"searching for: {query} normailized: {proccesed_query}")
+        # print(f"searching for: {query} normailized: {proccesed_query}")
 
         temp_matches = []
         for doc_id in self._document_suffix_ids:
-            print(f"Searching in doc: {doc_id}")
+            # print(f"Searching in doc: {doc_id}")
             doc_tokens = self._document_tokens[doc_id]
             sorted_suffix_ids = self._document_suffix_ids[doc_id]
 
@@ -270,7 +229,6 @@ class SuffixArray:
             if match_score > 0:
                 new_match_dict = {"score": match_score, "document": self._corpus.get_document(doc_id)}
                 self._insert_into_temp_results(new_match_dict, temp_matches, hit_count)
-            # print(f"Doc: {doc_id} match score: {match_score}")
         for match in temp_matches:
             callback(match)
 
@@ -367,7 +325,6 @@ class SuffixArray:
         itt_index = start
 
         if itt_index > len(sorted_suffix_ids) - 1 or itt_index < 0:
-            print("Returning 0")
             return 0
 
         if reverse_itteration:
