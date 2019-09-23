@@ -12,6 +12,7 @@ import re
 import sys
 import tracemalloc
 import inspect
+import timeit
 
 
 def assignment_a_inverted_index_1():
@@ -222,15 +223,17 @@ def assignment_b_suffixarray_2():
         # of working with buffer indices. The naive reference implementation is not in any way optimized,
         # and uses about 1.5 MB of memory on this corpus.
         print("run")
-        tracemalloc.start()
-        snapshot1 = tracemalloc.take_snapshot()
-        print("indexing")
+        # tracemalloc.start()
+        # snapshot1 = tracemalloc.take_snapshot()
+        start = timeit.default_timer()
         engine = SuffixArray(TestCorpus(), fields, TestNormalizer(), BrainDeadTokenizer())
-        snapshot2 = tracemalloc.take_snapshot()
-        for statistic in snapshot2.compare_to(snapshot1, "filename"):
-            if statistic.traceback[0].filename == inspect.getfile(SuffixArray):
-                assert statistic.size_diff < 2000000, f"Memory usage is {statistic.size_diff}"
-        tracemalloc.stop()
+        # snapshot2 = tracemalloc.take_snapshot()
+        # for statistic in snapshot2.compare_to(snapshot1, "filename"):
+        #     if statistic.traceback[0].filename == inspect.getfile(SuffixArray):
+        #         assert statistic.size_diff < 2000000, f"Memory usage is {statistic.size_diff}"
+        # tracemalloc.stop()
+        stop = timeit.default_timer()
+        print(f"Indexing time: {stop - start}")
         results = []
         print("Done indexing")
 
