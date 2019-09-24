@@ -37,6 +37,7 @@ class SuffixArray:
         Builds a simple suffix array from the set of named fields in the document collection.
         The suffix array allows us to search across all named fields in one go.
         """
+
         for document in self._corpus:
             document_id = document.get_document_id()
             normalized_content = self._build_normailized_document_content(document_id)
@@ -50,6 +51,10 @@ class SuffixArray:
             for i in range(len(tokens)):
                 suffix_ids.append(i)
             
+
+            # Uses the eager comparison function when the average token size if 1 or 2, otherwise uses the lazy version
+            # This is mostly a hack to make the second test go faster, I would very much like to know how to handle
+            # lager amount of repeating tokens efficiently
             if average_token_size < 3:
                 suffix_ids.sort(key=functools.cmp_to_key(lambda x, y: self._compare_suffixes_eager(x, y, document_id)))
             else:
@@ -59,6 +64,13 @@ class SuffixArray:
             
 
     def _build_normailized_document_content(self, document_id: int) -> str:
+        """
+        Builds the normalized document content from document id that is given.
+        Returns the processed document content as one continues string by joining the
+        specified fields together. Uses "\0" as the deliminator between contents from 
+        different fields. Also maintains a dictionary over doc_id -> list_of_deliminator_indices 
+        for token fetching later.
+        """
         document = self._corpus.get_document(document_id)
         contents = [document.get_field(field, "") for field in self._fields]
         normalized_contents = [self._normalize(content) for content in contents]
@@ -74,7 +86,15 @@ class SuffixArray:
         return proccesed_content
 
 
-    def _compare_suffixes_eager(self, token_id_1, token_id_2, document_id):
+    def _compare_suffixes_eager(self, token_id_1: int, token_id_2: int, document_id: int)-> int:
+        """        
+        Comparator function supplied to the python built in List.sort().
+        Compares two suffixes, represented by their id(index of their first token in the token list).
+        Returns 0 if the two ids are the same, -1 if suffix_1 < suffix_2 and 1 if suffix_1 > suffix_2.
+        
+        This comparator function only gets the whole suffix string at once, and compares them using the 
+        python comparison operator.
+        """
         if token_id_1 == token_id_2:
             return 0
         
@@ -107,7 +127,15 @@ class SuffixArray:
 
         return 1 if suffix_1_string > suffix_2_string else -1
 
-    def _compare_suffixes_lazy(self, token_id_1, token_id_2, document_id):
+    def _compare_suffixes_lazy(self, token_id_1: int, token_id_2: int, document_id: int)-> int:
+        """
+        Comparator function supplied to the python built in List.sort().
+        Compares two suffixes, represented by their id(index of their first token in the token list).
+        Returns 0 if the two ids are the same, -1 if suffix_1 < suffix_2 and 1 if suffix_1 > suffix_2.
+        
+        This comparator function only gets the ~50 character chunks of the suffixes, and uses them
+        for comparasion, rather than getting the whole suffix string at once.
+        """
         if token_id_1 == token_id_2:
             return 0
 
@@ -165,7 +193,11 @@ class SuffixArray:
             return 1
 
 
-    def _get_token_string(self, index, suffix_tuple_list, content, document_id):
+    def _get_token_string(self, index: int, suffix_tuple_list: List[Tuple[int]], content: str, document_id: int)-> str:
+        """
+        Given a list of token ranges, gets the string that is represented by the range at the index, 
+        in the content string (normalized document content)
+        """
         delim_indices = self._document_field_delim_indices[document_id]
         if index >= len(suffix_tuple_list):
             return None
@@ -211,11 +243,13 @@ class SuffixArray:
         normalized_query = self._normalize(query)
         query_tokens = self._tokenizer.strings(normalized_query)
         proccesed_query = " ".join(query_tokens)
-        # print(f"searching for: {query} normailized: {proccesed_query}")
 
+        """
+        Loops through all the documents, gets the suffix array for each document.
+        Uses binary search if document has more than 50 suffixes, other wise linear search is used.
+        """
         temp_matches = []
         for doc_id in self._document_suffix_ids:
-            # print(f"Searching in doc: {doc_id}")
             doc_tokens = self._document_tokens[doc_id]
             sorted_suffix_ids = self._document_suffix_ids[doc_id]
 
@@ -238,6 +272,10 @@ class SuffixArray:
 
 
     def _insert_into_temp_results(self, new_match: dict, temp_results: List[dict], hit_count: int) -> None:
+        """
+        Insert a new matches document in the temporary results list. if result_count higher
+        than povided hit_count, remove the lowest ranked one.
+        """
         temp_results.append(new_match)
         temp_results.sort(key=lambda x: x["score"], reverse=True)
         if len(temp_results) > hit_count:
@@ -246,7 +284,11 @@ class SuffixArray:
 
 
 
-    def _suffix_linear_search(self, query: str, sorted_suffix_ids: List[int], doc_tokens: List[Tuple[int]], content: str, document_id) -> int:
+    def _suffix_linear_search(self, query: str, sorted_suffix_ids: List[int], doc_tokens: List[Tuple[int]], content: str, document_id: int) -> int:
+        """
+        Searches the suffix array linearly and stops at the first suffix that is bigger than the query.
+        Returns the number of suffixes that matches the query.
+        """
         lower = 0
         found_lower = False
         for i in range(len(sorted_suffix_ids)):
@@ -270,10 +312,15 @@ class SuffixArray:
 
         return num_matches
 
-    def _suffix_binary_search(self, query: str, sorted_suffix_ids: List[int], doc_tokens: List[Tuple[int]], content: str, document_id) -> int:
+    def _suffix_binary_search(self, query: str, sorted_suffix_ids: List[int], doc_tokens: List[Tuple[int]], content: str, document_id: int) -> int:
+        """
+        Searches matches in the suffix array, using the _prefix_match() function as the comaprator
+        Uses binary search to find the first match, then searches linearly left and right to count
+        all the matches.
+        Returns the number of mathces
+        """
         num_matches = 0
         
-        # # Check highest and lowest possible match at once. Search is not run if query out of bound
         if len(sorted_suffix_ids) == 1:
             suffix_tuples = doc_tokens
             return 1 if self._prefix_match(query, suffix_tuples, content, document_id) == 0 else 0
@@ -320,38 +367,14 @@ class SuffixArray:
             return num_matches
 
 
-    def _suffix_linear_probing(self, query, sorted_suffix_ids: List[int], doc_tokens: List[Tuple[int]], content: str, start: int, reverse_itteration: bool, document_id) -> int:
-        num_matches = 0
-        itt_index = start
+    def _prefix_match(self, prefix: str, suffix_tuples: List[Tuple[int]], content: str, document_id: int) -> int:
+        """
+        Function that matches a prefex with a suffix. Only fetches enough tokens from the suffix
+        in order to compare.
+        Returns 0 if match, -1 if prefix < suffix, 1 if prefix > suffix
 
-        if itt_index > len(sorted_suffix_ids) - 1 or itt_index < 0:
-            return 0
-
-        if reverse_itteration:
-            itt_index -= 1
-            while itt_index >= 0:
-                suffix_tuples = doc_tokens[sorted_suffix_ids[itt_index]:len(doc_tokens)]
-                match_result = self._prefix_match(query, suffix_tuples, content, document_id)
-                if match_result != 0:
-                    break
-                else:
-                    num_matches += 1
-                    itt_index -= 1
-        else:
-            itt_index += 1
-            while itt_index < len(sorted_suffix_ids):
-                suffix_tuples = doc_tokens[sorted_suffix_ids[itt_index]:len(doc_tokens)]
-                match_result = self._prefix_match(query, suffix_tuples, content, document_id)
-                if match_result != 0:
-                    break
-                else:
-                    num_matches += 1
-                    itt_index += 1
-
-        return num_matches
-
-
-    def _prefix_match(self, prefix: str, suffix_tuples: List[Tuple[int]], content: str, document_id):
+        """
+        
         suffix_tokens = []
         delim_indices = self._document_field_delim_indices[document_id]
 
