@@ -100,13 +100,14 @@ class StringFinder:
         or similar linguistic variations.
         """
         normalized = " ".join(self._tokenizer.strings(buffer))
+        
         exploring_queue = []
         matches = []
         is_token_start = False
         is_token_end = False
         for i in range(len(normalized)):
             character = normalized[i]
-            if i > 0 and normalized[i - 1] == " ":
+            if i == 0 or (i > 0 and normalized[i - 1] == " "):
                 is_token_start = True
             else:
                 is_token_start = False
@@ -117,6 +118,7 @@ class StringFinder:
                 is_token_end = True
             else:
                 is_token_end = False
+            
 
             new_queue = []
             for node_dict in exploring_queue:
@@ -137,6 +139,9 @@ class StringFinder:
             if is_token_start:
                 new_node = self._trie.consume(character)
                 if new_node:
+                    if new_node.is_final():
+                        match_result = {"match": character, "range": (i, i + 1)}
+                        matches.append(match_result)
                     exploring_queue.append({"node": new_node, "start": i, "end": i + 1})
         
         for match in matches:

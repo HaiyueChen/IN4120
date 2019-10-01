@@ -309,10 +309,27 @@ def assignment_b_stringfinder():
         assert [m["match"] for m in results] == expected_matches
 
 
+def test_string_finder():
+    tokenizer = BrainDeadTokenizer()
+    trie = Trie()
+    for s in ["a", "a b"]:
+        trie.add(s, tokenizer)
+    finder = StringFinder(trie, tokenizer)
+    buffer = "a a b"
+    print("SCANNING...")
+    results = []
+    finder.scan(buffer, lambda m: results.append(m))
+    print("Buffer \"" + buffer + "\" contains", results)
+    # print([m["match"] for m in results])
+    assert [m["match"] for m in results] == ["a", "a", "a b"]
+
+
+
 def assignment_b():
     # assignment_b_suffixarray_1()
     # assignment_b_suffixarray_2()
-    assignment_b_stringfinder()
+    # assignment_b_stringfinder()
+    test_string_finder()
 
 
 def assignment_c():
