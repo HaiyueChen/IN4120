@@ -58,33 +58,33 @@ class SimpleSearchEngine:
             return
         
         current_postings = {}
-        for key in posting_iters:
-            itt = posting_iters[key]
+        for term in posting_iters:
+            itt = posting_iters[term]
             posting = next(itt, None)
             if not posting:
-                del posting_iters[key]
+                del posting_iters[term]
             else:
-                current_postings[key] = posting
+                current_postings[term] = posting
     
         last_matching_doc_id = -1
         while len(posting_iters) >= min_matches:
             min_doc_id = float("inf")
             itter_to_advance = []
             match_grouping = {}
-            for key in current_postings:
-                posting = current_postings[key]
+            for term in current_postings:
+                posting = current_postings[term]
                 doc_id = posting.document_id
                 if doc_id < min_doc_id:
                     itter_to_advance.clear()
                     min_doc_id = doc_id
-                    itter_to_advance.append(posting_iters[key])
+                    itter_to_advance.append(term)
                 elif doc_id == min_doc_id:
-                    itter_to_advance.append(posting_iters[key])
+                    itter_to_advance.append(term)
 
                 if doc_id in match_grouping:
-                    match_grouping[doc_id].append((key, posting))
+                    match_grouping[doc_id].append((term, posting))
                 else:
-                    match_grouping[doc_id] = [(key, posting)]
+                    match_grouping[doc_id] = [(term, posting)]
 
             ## Check for match
             for doc_id in match_grouping:
@@ -96,17 +96,30 @@ class SimpleSearchEngine:
                     ranker.reset(doc_id)
                     match_tuples = match_grouping[doc_id]
                     for match_tuple in match_tuples:
-                        multiplicity = query_terms[match_tuples[0]]
-                        ranker.update(term, multiplicity, match_tuples[1])
+                        multiplicity = query_terms[match_tuple[0]]
+                        ranker.update(term, multiplicity, match_tuple[1])
                     score = ranker.evaluate()
-                    sieve.sift(score, (score, doc_id))
+                    sieve.sift(score, doc_id)
 
-            
+            ## Advance iters
+            for term in itter_to_advance:
+                itt = posting_iters[term]
+                posting = next(itt, None)
+                if not posting:
+                    del posting_iters[term]
+                    del current_postings[term]
+                else:
+                    current_postings[term] = posting
 
-            input()
+        ## callbacks
+        for winner in sieve.winners():
+            print(winner)
+            to_return = {
+                "score": winner[0],
+                "document": self._corpus.get_document(winner[1])
+            }
 
-        input()
-
+        return 
 
     def _get_query_terms(self, query) -> Dict[str, int]:
         query_terms = self._inverted_index.get_terms(query)
