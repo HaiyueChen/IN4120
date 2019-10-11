@@ -339,8 +339,10 @@ def assignment_c_simplesearchengine_1():
         options = {"match_threshold": match_threshold, "hit_count": 10, "debug": False}
         engine.evaluate(query, options, simple_ranker, match_collector)
         assert len(results) == {0.1: 10, 1.0: 3}[match_threshold]
+        print(results)
         for (score, document_id) in [(match["score"], match["document"].document_id) for match in results[:3]]:
             assert score == 2.0  # Both 'pollution' and 'water'.
+
             assert document_id in [25274, 25275, 25276]
         for score in [match["score"] for match in results[3:]]:
             assert score == 1.0  # Only 'pollution' or 'water', but not both.
@@ -513,8 +515,8 @@ def assignment_c_simplesearchengine_3():
 
 
 def assignment_c():
-    assignment_c_simplesearchengine_1()
-    assignment_c_simplesearchengine_2()
+    # assignment_c_simplesearchengine_1()
+    # assignment_c_simplesearchengine_2()
     assignment_c_simplesearchengine_3()
 
 
