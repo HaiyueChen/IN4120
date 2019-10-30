@@ -111,25 +111,17 @@ class NaiveBayesClassifier:
         for category in self._categories:
             category_obj = self._categories[category]
             probability_of_category = math.log(category_obj["probability"])
-            # probability_of_category = 1
             terms_in_category = category_obj["word_count"]
-            print("\n",category)
             for term in terms:
                 term_id = self._vocabulary.get_term_id(term)
                 if term_id == None:
-                    print("wtf")
                     continue
+
                 term_obj = self._term_category_frequency[term_id]
                 term_category_occurance = term_obj[category]
                 probability_term_given_category = (term_category_occurance + 1) / (terms_in_category + vocabulary_size)
-                print(term, math.log(probability_term_given_category))
                 probability_of_category += math.log(probability_term_given_category)
             
-            # log_probability = math.log(probability_of_category)
-            # category_score_obj = {
-            #     "category": category,
-            #     "score": log_probability
-            # }
             category_score_obj = {
                 "category": category,
                 "score": probability_of_category
@@ -139,7 +131,6 @@ class NaiveBayesClassifier:
 
         probabilities.sort(key=lambda x: x["score"], reverse=True)
         for category_score_obj in probabilities:
-            print(category_score_obj)
             callback(category_score_obj)
         
         return
