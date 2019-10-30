@@ -64,15 +64,9 @@ class ShingleGenerator(Tokenizer):
         The current implementation is simplistic and not whitespace- or punctuation-aware,
         and doesn't treat the beginning or end of the buffer in a special way.
         """
-
-        # raise NotImplementedError()
-        ranges = []
-        if len(buffer) == 0:
-            return ranges
-
-        if len(buffer) < self._width:
-            ranges.append((0, len(buffer)))
+        if buffer == "":
+            return []
+        elif len(buffer) <= self._width:
+            return [(0, len(buffer))]
         else:
-            for i in range(len(buffer) - self._width + 1):
-                ranges.append((i, i + self._width))
-        return ranges
+            return [(i, i + self._width) for i in range(0, len(buffer) - self._width + 1)]

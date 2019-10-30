@@ -81,29 +81,11 @@ class BetterRanker(Ranker):
         self._document_id = document_id
 
     def update(self, term: str, multiplicity: int, posting: Posting) -> None:
-        document = self._corpus[self._document_id]
-        tf_score = posting.term_frequency
-        
-        # I would have calculated tf factor as the frequency of the term 
-        # in the document divided by the total number of terms in the document.
-        # The higher this fraction is, means that the terms has more importance
-        # in the context of the document. This can be a tie breaker between documents
-        # with the same freqeuncy of a term, but different total number of tokens.
-
-        # However, I could not implement this version, since I was unable to get the total
-        # amount of tokens in a document.
-        
-        # tf_score = posting.term_frequency / {nr terms in the document}
-
-        idf_score = math.log(len(self._corpus) / self._inverted_index.get_document_frequency(term), 2)
-        self._score += tf_score * idf_score * multiplicity
-
+        tf_score = math.log10(multiplicity * (1 + posting.term_frequency))
+        idf_score = math.log10(self._corpus.size() / float(self._inverted_index.get_document_frequency(term)))
+        self._score += tf_score * idf_score
 
     def evaluate(self) -> float:
         document = self._corpus[self._document_id]
-        
         static_quality_score = float(document[self._static_score_field_name] or 0.0)
-        
-        return self._dynamic_score_weight * self._score + self._static_score_weight * static_quality_score
-
-
+        return (self._dynamic_score_weight * self._score) + (self._static_score_weight * static_quality_score)
